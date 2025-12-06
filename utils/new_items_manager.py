@@ -45,10 +45,16 @@ class NewItemsManager:
             message += Localizator.get_text(BotEntity.ADMIN, "restocking_message_category").format(
                 category=category)
             for subcategory, item in subcategory_item_dict.items():
+                # item[0].price ni alohida formatlash
+                formatted_price = "{:,}".format(item[0].price)  # 3-raqamdan ajratadi
+
+                # keyin message ga qo‘shish
                 message += Localizator.get_text(BotEntity.USER, "subcategory_button").format(
                     subcategory_name=subcategory,
                     available_quantity=len(item),
-                    subcategory_price=item[0].price,
-                    currency_sym=Localizator.get_currency_symbol()) + "\n"
+                    subcategory_price=formatted_price,  # xatolik bo‘lmaydi
+                    currency_sym=Localizator.get_currency_symbol()
+                ) + "\n"
+
         message += "</b>"
         return message
