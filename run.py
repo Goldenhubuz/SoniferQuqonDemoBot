@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import config
 from config import SUPPORT_LINK
 import logging
-from bot import dp, main, redis
+from bot import dp, main, redis, bot
 from enums.bot_entity import BotEntity
 from middleware.database import DBSessionMiddleware
 from middleware.throttling_middleware import ThrottlingMiddleware
@@ -23,13 +23,16 @@ from services.notification import NotificationService
 from services.user import UserService
 from utils.custom_filters import IsUserExistFilter
 from utils.localizator import Localizator
+from utils.set_bot_commands import set_default_commands
 
 logging.basicConfig(level=logging.INFO)
 main_router = Router()
 
 
-@main_router.message(Command(commands=["start", "help"]))
+@main_router.message(Command(commands=["start"]))
 async def start(message: types.message, session: AsyncSession | Session):
+    await set_default_commands(bot)
+
     all_categories_button = types.KeyboardButton(text=Localizator.get_text(BotEntity.USER, "all_categories"))
     my_profile_button = types.KeyboardButton(text=Localizator.get_text(BotEntity.USER, "my_profile"))
     faq_button = types.KeyboardButton(text=Localizator.get_text(BotEntity.USER, "faq"))
@@ -37,6 +40,7 @@ async def start(message: types.message, session: AsyncSession | Session):
     admin_menu_button = types.KeyboardButton(text=Localizator.get_text(BotEntity.ADMIN, "menu"))
     cart_button = types.KeyboardButton(text=Localizator.get_text(BotEntity.USER, "cart"))
     telegram_id = message.from_user.id
+
     await UserService.create_if_not_exist(UserDTO(
         telegram_username=message.from_user.username,
         telegram_id=telegram_id
@@ -49,18 +53,36 @@ async def start(message: types.message, session: AsyncSession | Session):
     await message.answer(Localizator.get_text(BotEntity.COMMON, "start_message"), reply_markup=start_markup)
 
 
-@main_router.message(F.text == Localizator.get_text(BotEntity.USER, "faq"), IsUserExistFilter())
-async def faq(message: types.message):
+@main_router.message(
+    Command("faq"),
+    IsUserExistFilter()
+)
+@main_router.message(
+    F.text == Localizator.get_text(BotEntity.USER, "faq"),
+    IsUserExistFilter()
+)
+async def faq_handler(message: types.Message):
     await message.answer(Localizator.get_text(BotEntity.USER, "faq_string"))
 
 
-@main_router.message(F.text == Localizator.get_text(BotEntity.USER, "help"), IsUserExistFilter())
-async def support(message: types.message):
+@main_router.message(
+    Command("help"),
+    IsUserExistFilter()
+)
+@main_router.message(
+    F.text == Localizator.get_text(BotEntity.USER, "help"),
+    IsUserExistFilter()
+)
+async def support_handler(message: types.Message):
     admin_keyboard_builder = InlineKeyboardBuilder()
-
-    admin_keyboard_builder.button(text=Localizator.get_text(BotEntity.USER, "help_button"), url=SUPPORT_LINK)
-    await message.answer(Localizator.get_text(BotEntity.USER, "help_string"),
-                         reply_markup=admin_keyboard_builder.as_markup())
+    admin_keyboard_builder.button(
+        text=Localizator.get_text(BotEntity.USER, "help_button"),
+        url=SUPPORT_LINK
+    )
+    await message.answer(
+        Localizator.get_text(BotEntity.USER, "help_string"),
+        reply_markup=admin_keyboard_builder.as_markup()
+    )
 
 
 @main_router.error(F.update.message.as_("message"))

@@ -1,65 +1,36 @@
 services:
-  caddy:
-    image: lucaslorentz/caddy-docker-proxy:2.9.1-alpine
-    ports:
-      - 80:80
-      - 443:443
-    environment:
-      - CADDY_INGRESS_NETWORKS=caddy
-    networks:
-      - caddy
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./caddy/caddy_data:/data
-    restart: always
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
   bot:
     build:
       context: .
-    container_name: 'AiogramShopBot'
+    container_name: 'SoniferQuqonBot'
     env_file:
       - .env
-    labels:
-      caddy: YOUR-DOMAIN-GOES-HERE
-      caddy.reverse_proxy: "bot:5000"
-    depends_on:
-      - caddy
     networks:
-      - caddy
+      - app_net
     ports:
       - "4040:4040"
-      - "5000:5000" # ${WEBAPP_PORT}:${WEBAPP_PORT}
-    expose:
-      - 4040
-      - 5000 # ${WEBAPP_PORT}
+      - "5000:5000"
     volumes:
-      - ./AiogramShopBot:/bot/data # endswith your database name
-    command: [ "python", "-u", "run.py" ]
+      - ./SoniferQuqonBot:/bot/data  # Only persist database folder
     restart: always
+    depends_on:
+      - redis
 
   redis:
-    image: redis:latest
+    image: redis:7-alpine
     container_name: redis
-    command:
-      - /bin/sh
-      - -c
-      - redis-server --requirepass "$${REDIS_PASSWORD:?REDIS_PASSWORD variable is not set}"
+    command: >
+      redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD variable is not set}
     ports:
       - "6379:6379"
-    env_file:
-      - .env
     volumes:
       - redis_data:/data
     restart: always
     networks:
-      - caddy
+      - app_net
 
 volumes:
-  AiogramShopBot:
-  caddy_data:
   redis_data:
 
 networks:
-  caddy:
+  app_net:
